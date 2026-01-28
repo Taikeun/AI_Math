@@ -10,6 +10,7 @@ interface CameraInputProps {
 export default function CameraInput({ onImageSelected }: CameraInputProps) {
     const [preview, setPreview] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const galleryInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -25,14 +26,17 @@ export default function CameraInput({ onImageSelected }: CameraInputProps) {
 
     const clearImage = () => {
         setPreview(null);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        if (galleryInputRef.current) galleryInputRef.current.value = "";
     };
 
     const triggerCamera = () => {
         fileInputRef.current?.click();
     };
+
+    const triggerGallery = () => {
+        galleryInputRef.current?.click();
+    }
 
     if (preview) {
         return (
@@ -59,11 +63,6 @@ export default function CameraInput({ onImageSelected }: CameraInputProps) {
                         <Camera size={20} />
                         Retake
                     </button>
-
-                    {/* In a real app, this might be 'Confirm' or triggering the API */}
-                    {/* For now, it stays as preview state, parent handles the 'Solve' action alongside this or this checks it off. */}
-                    {/* Actually, user might want to Confirm here. But the parent needs the file. */}
-                    {/* For MVP, let's assume selecting it is enough, but adding a visual 'Ready' state is good. */}
                 </div>
             </div>
         );
@@ -77,6 +76,13 @@ export default function CameraInput({ onImageSelected }: CameraInputProps) {
                 capture="environment"
                 className="hidden"
                 ref={fileInputRef}
+                onChange={handleFileChange}
+            />
+            <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={galleryInputRef}
                 onChange={handleFileChange}
             />
 
@@ -97,9 +103,12 @@ export default function CameraInput({ onImageSelected }: CameraInputProps) {
                     Open Camera
                 </button>
 
-                <p className="text-sm text-gray-400">
+                <button
+                    onClick={triggerGallery}
+                    className="text-sm text-gray-400 hover:text-gray-600 underline-offset-4 hover:underline transition"
+                >
                     or upload from gallery
-                </p>
+                </button>
             </div>
         </div>
     );
