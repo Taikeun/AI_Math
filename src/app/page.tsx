@@ -168,24 +168,21 @@ export default function Home() {
           </div>
         </div>
         <h1 className="text-xl font-bold mb-2 text-gray-900">Access Restricted</h1>
-        <p className="text-gray-500 mb-6 text-sm">Please enter the PIN to continue.</p>
+        <p className="text-gray-500 mb-6 text-sm">Please enter the Password to continue.</p>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <input
               type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter PIN"
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg tracking-widest"
-              maxLength={4}
+              placeholder="Enter Password"
+              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg tracking-widest text-gray-900 placeholder:text-gray-400"
             />
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm">Incorrect PIN. Try again.</p>
+            <p className="text-red-500 text-sm">Incorrect Password. Try again.</p>
           )}
 
           <button
