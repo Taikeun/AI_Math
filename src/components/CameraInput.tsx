@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Camera, X, Check, Image as ImageIcon } from "lucide-react";
+import { compressImage } from "@/lib/image-utils";
 
 interface CameraInputProps {
     onImageSelected: (file: File) => void;
@@ -12,15 +13,30 @@ export default function CameraInput({ onImageSelected }: CameraInputProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-            onImageSelected(file);
+            try {
+                // Determine source type or add simple loading logic if needed
+                // But native compression is fast enough usually
+                const compressedFile = await compressImage(file);
+
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setPreview(reader.result as string);
+                };
+                reader.readAsDataURL(compressedFile);
+                onImageSelected(compressedFile);
+            } catch (error) {
+                console.error("Compression failed", error);
+                // Fallback to original
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setPreview(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+                onImageSelected(file);
+            }
         }
     };
 

@@ -6,7 +6,7 @@ import { Lock } from "lucide-react";
 import CameraInput from "@/components/CameraInput";
 
 import SolutionDisplay from "@/components/SolutionDisplay";
-import { solveMathProblem } from "@/lib/gemini";
+import { solveMathProblem, solveMathProblemStream } from "@/lib/gemini";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
@@ -17,6 +17,7 @@ export default function Home() {
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [solution, setSolution] = useState<string | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   // Check session on mount
   useEffect(() => {
@@ -25,6 +26,18 @@ export default function Home() {
       setIsAuthenticated(true);
     }
   }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (loading) {
+      const startTime = Date.now();
+      setElapsedTime(0);
+      interval = setInterval(() => {
+        setElapsedTime((Date.now() - startTime) / 1000);
+      }, 100);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +72,8 @@ export default function Home() {
     if (!image) return;
 
     setLoading(true);
+    setSolution(""); // Initialize with empty string for streaming
+
     try {
       // Convert image to Base64
       const reader = new FileReader();
@@ -66,8 +81,13 @@ export default function Home() {
       reader.onloadend = async () => {
         const base64data = reader.result as string;
         try {
-          const result = await solveMathProblem(base64data);
-          setSolution(result);
+          const stream = solveMathProblemStream(base64data);
+
+          let fullText = "";
+          for await (const chunk of stream) {
+            fullText += chunk;
+            setSolution(fullText);
+          }
         } catch (err) {
           console.error(err);
           alert("문제를 푸는 도중 오류가 발생했습니다. 다시 시도해주세요.\n" + (err as Error).message);
@@ -130,7 +150,7 @@ export default function Home() {
                     {loading ? (
                       <>
                         <Loader2 className="animate-spin" />
-                        AI 선생님이 생각하는 중...
+                        AI 선생님이 생각하는 중... ({elapsedTime.toFixed(1)}s)
                       </>
                     ) : (
                       "문제 풀기 (Solve)"
