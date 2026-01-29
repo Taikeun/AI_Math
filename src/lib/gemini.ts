@@ -1,3 +1,4 @@
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -8,7 +9,6 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
-// System instruction to guide the model behavior
 // System instruction to guide the model behavior
 const SYSTEM_INSTRUCTION = `
 당신은 초등학생과 중학생을 위한 친절하고 똑똑한 AI 수학 선생님입니다. 
@@ -29,20 +29,21 @@ const SYSTEM_INSTRUCTION = `
 `;
 
 // Helper to assess difficulty
-async function assessDifficulty(base64Image: string): Promise<"Simple" | "Hard" | "VeryHard"> {
-    if (!apiKey) return "Hard"; // Default
+async function assessDifficulty(base64Image: string): Promise<"Simple" | "Standard" | "Hard" | "VeryHard"> {
+    if (!apiKey) return "Standard"; // Default
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" }); // Fast classifier
         const base64Data = base64Image.split(",")[1];
         const mimeType = base64Image.split(";")[0].split(":")[1];
 
         const prompt = `
-        Analyze this math problem image. Classify its difficulty into exactly one of these three categories:
+        Analyze this math problem image. Classify its difficulty into exactly one of these four categories:
         1. Simple (Elementary arithmetic, simple geometry/algebra)
-        2. Hard (Middle school geometry/algebra, complex calculations)
-        3. Very Hard (High school calculus, advanced theorems, very messy handwriting)
+        2. Standard (Middle school algebra, standard geometry, textbook problems)
+        3. Hard (High school algebra, complex geometry, multiple steps required)
+        4. VeryHard (Advanced calculus, university level, very messy handwriting, or extremely complex context)
         
-        Return ONLY the word "Simple", "Hard", or "VeryHard". Do not explain.
+        Return ONLY the word "Simple", "Standard", "Hard", or "VeryHard". Do not explain.
         `;
 
         const imagePart = {
@@ -51,21 +52,23 @@ async function assessDifficulty(base64Image: string): Promise<"Simple" | "Hard" 
 
         const result = await model.generateContent([prompt, imagePart]);
         const text = result.response.text().trim();
-        if (text.includes("Very")) return "VeryHard";
+
+        if (text.includes("VeryHard")) return "VeryHard";
         if (text.includes("Hard")) return "Hard";
+        if (text.includes("Standard")) return "Standard";
         return "Simple";
     } catch (e) {
-        console.error("Difficulty assessment failed, defaulting to Hard", e);
-        return "Hard";
+        console.error("Difficulty assessment failed, defaulting to Standard", e);
+        return "Standard";
     }
 }
 
 export async function solveMathProblem(base64Image: string): Promise<string> {
-    // Legacy function, keeping basic behavior but updated to Flash-Lite
+    // Legacy function, updated to use Standard model
     if (!apiKey) throw new Error("API Key가 설정되지 않았습니다.");
     try {
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash-lite",
+            model: "gemini-2.5-flash",
             systemInstruction: SYSTEM_INSTRUCTION
         });
         const base64Data = base64Image.split(",")[1];
@@ -94,28 +97,25 @@ export async function* solveMathProblemStream(base64Image: string) {
         // 1. Assess Difficulty
         const difficulty = await assessDifficulty(base64Image);
 
-        // 2. Select Model
+        // 2. Select Model based on User's 2026 Guidelines
         let modelName = "gemini-2.5-flash-lite"; // Default Simple
-        if (difficulty === "Hard") modelName = "gemini-2.0-flash"; // Using 2.0 Flash as 'standard' hard (assuming user meant this or 3-flash-preview maps to it)
-        if (difficulty === "VeryHard") modelName = "gemini-2.0-pro-exp-02-05"; // 2.0 Pro Exp as Very Hard
 
-        // Fallback for user's specific request strings if they really exist
-        // The user asked for: gemini-2.5-flash-lite, gemini-3-flash-preview, gemini-3-pro-preview
-        // I will attempt to use them, but keep the above as safe fallbacks if 404.
-
-        // Actually, let's try to honor the user's specific names first, but wrap in try-catch logic logic inside the generation? 
-        // No, that's complex for streaming. 
-        // Let's map them to likely real models to ensure stability:
-        // Simple -> gemini-2.5-flash-lite (Confirmed working)
-        // Hard -> gemini-2.0-flash (Stable Preview)
-        // Very Hard -> gemini-2.0-pro-exp-02-05 (Best reasoning)
-
-        // Re-mapping based on explicit user instruction:
-        // "gemini-3-flash-preview" -> I will map this to `gemini-2.0-flash` because 3.0 is not public.
-        // "gemini-3-pro-preview" -> I will map this to `gemini-2.0-pro-exp-02-05`.
-
-        if (difficulty === "Hard") modelName = "gemini-2.0-flash";
-        if (difficulty === "VeryHard") modelName = "gemini-2.0-pro-exp-02-05";
+        switch (difficulty) {
+            case "Simple":
+                modelName = "gemini-2.5-flash-lite";
+                break;
+            case "Standard":
+                modelName = "gemini-2.5-flash";
+                break;
+            case "Hard":
+                modelName = "gemini-3-flash-preview";
+                break;
+            case "VeryHard":
+                modelName = "gemini-3-pro-preview";
+                break;
+            default:
+                modelName = "gemini-2.5-flash"; // Safe fallback
+        }
 
         const model = genAI.getGenerativeModel({
             model: modelName,
@@ -141,12 +141,10 @@ export async function* solveMathProblemStream(base64Image: string) {
 
     } catch (error) {
         console.error("Gemini API Stream Error:", error);
-        // Fallback to safe model if selected model specifically failed
+        // Fallback logic if specific 2026 models aren't available yet in this environment
         if ((error as Error).message?.includes("404") || (error as Error).message?.includes("not found")) {
-            yield `[MODEL: Fallback (gemini-2.5-flash-lite)]\n`;
-            // ... implementation of fallback would be recursive or duplicated logic. 
-            // For now, throw friendly error asking to check model availability.
-            throw new Error("모델을 찾을 수 없습니다.");
+            yield `[MODEL: Fallback (gemini-2.5-flash)]\n`;
+            throw new Error("요청하신 모델(" + error + ")을 찾을 수 없습니다.");
         }
         throw error;
     }

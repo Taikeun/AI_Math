@@ -1,9 +1,6 @@
 
-import { solveMathProblemStream } from "../src/lib/gemini";
 import fs from "fs";
 import path from "path";
-
-// Load environment variables manually
 function loadEnv() {
     const envPath = path.resolve(process.cwd(), ".env.local");
     if (!fs.existsSync(envPath)) return {};
@@ -22,11 +19,14 @@ function loadEnv() {
     return env;
 }
 
-// Set global env for the library to read
-const env = loadEnv();
-process.env.NEXT_PUBLIC_GEMINI_API_KEY = env.NEXT_PUBLIC_GEMINI_API_KEY;
-
 async function testStream() {
+    // Set global env for the library to read BEFORE importing it
+    const env = loadEnv();
+    process.env.NEXT_PUBLIC_GEMINI_API_KEY = env.NEXT_PUBLIC_GEMINI_API_KEY;
+
+    // Dynamic import to ensure process.env is set before module evaluation
+    const { solveMathProblemStream } = await import("../src/lib/gemini");
+
     const imagePath = "/Users/tcho/.gemini/antigravity/brain/86704791-6eac-4331-a9df-8f25e7b83fa1/uploaded_media_1769648105915.png";
 
     if (!fs.existsSync(imagePath)) {
@@ -60,7 +60,14 @@ async function testStream() {
             process.stdout.write(chunk);
             fullText += chunk;
         }
-        console.log("\n\nStream complete!");
+
+        if (fullText.length < 50) {
+            console.log("\n\n>>> ❌ CRITICAL FAILURE: Solution text is too short or missing. Only received: " + fullText.length + " chars.");
+        } else {
+            console.log("\n\n>>> ✅ SUCCESS: Stream finished with " + fullText.length + " chars of content.");
+        }
+
+        console.log("\nStream complete!");
     } catch (error) {
         console.error("Error during streaming:", error);
     }

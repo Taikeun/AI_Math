@@ -125,10 +125,16 @@ export default function Home() {
     if (modelInfo.includes("Simple") || modelInfo.includes("flash-lite")) {
       return <span className="bg-green-100 text-green-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full border border-green-400">⚡️ Fast Mode ({modelInfo})</span>;
     }
-    if (modelInfo.includes("Hard") || modelInfo.includes("flash")) {
+    if (modelInfo.includes("Standard") || modelInfo.includes("2.5-flash")) {
       return <span className="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full border border-blue-400">🧠 Standard Mode ({modelInfo})</span>;
     }
-    return <span className="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full border border-purple-400">🎓 Pro Mode ({modelInfo})</span>;
+    if (modelInfo.includes("Hard") && !modelInfo.includes("Very")) {
+      return <span className="bg-indigo-100 text-indigo-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full border border-indigo-400">🔥 Hard Mode ({modelInfo})</span>;
+    }
+    if (modelInfo.includes("VeryHard") || modelInfo.includes("pro")) {
+      return <span className="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full border border-purple-400">🎓 Pro Mode ({modelInfo})</span>;
+    }
+    return <span className="bg-gray-100 text-gray-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full border border-gray-400">AI Mode ({modelInfo})</span>;
   };
 
   if (isAuthenticated) {
@@ -193,7 +199,7 @@ export default function Home() {
                     {usedModel && getModelBadge(usedModel)}
                   </div>
                   <div className="p-6">
-                    <SolutionDisplay solution={solution} />
+                    <SolutionDisplay content={solution} />
                   </div>
                   <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center">
                     <button
