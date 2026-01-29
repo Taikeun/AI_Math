@@ -18,6 +18,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [solution, setSolution] = useState<string | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [usedModel, setUsedModel] = useState<string | null>(null);
 
   // Check session on mount
   useEffect(() => {
@@ -41,11 +42,6 @@ export default function Home() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple hardcoded pin for MVP as per PRD "Simple Access Control"
-    // In a real app, this would be env variable or hashed, but for "family/friends" usage:
-    // Let's assume a default PIN '1234' or allow user to set it? 
-    // The user said "처음에 비밀번호를 눌러야 해". 
-    // I'll set a default PIN '1234' for now and mentioned it to the user later.
     if (password === "grace2015") {
       localStorage.setItem("ai_math_session", "access_granted");
       setIsAuthenticated(true);
@@ -60,11 +56,13 @@ export default function Home() {
     setIsAuthenticated(false);
     setImage(null);
     setSolution(null);
+    setUsedModel(null);
   }
 
   const handleImageSelected = (file: File) => {
     setImage(file);
     setSolution(null);
+    setUsedModel(null);
     // Auto-scroll or UI update if needed
   };
 
@@ -72,7 +70,8 @@ export default function Home() {
     if (!image) return;
 
     setLoading(true);
-    setSolution(""); // Initialize with empty string for streaming
+    setSolution("");
+    setUsedModel(null);
 
     try {
       // Convert image to Base64
@@ -84,8 +83,22 @@ export default function Home() {
           const stream = solveMathProblemStream(base64data);
 
           let fullText = "";
+          let isFirstChunk = true;
+
           for await (const chunk of stream) {
-            fullText += chunk;
+            let textToAppend = chunk;
+
+            if (isFirstChunk) {
+              // Check for [MODEL: ...] header
+              const match = chunk.match(/^\[MODEL: (.*?)\]\n/);
+              if (match) {
+                setUsedModel(match[1]); // e.g., "gemini-2.0-flash (Hard)"
+                textToAppend = chunk.replace(match[0], "");
+              }
+              isFirstChunk = false;
+            }
+
+            fullText += textToAppend;
             setSolution(fullText);
           }
         } catch (err) {
@@ -104,7 +117,19 @@ export default function Home() {
   const handleRetake = () => {
     setImage(null);
     setSolution(null);
+    setUsedModel(null);
   }
+
+  // Helper to get badge style
+  const getModelBadge = (modelInfo: string) => {
+    if (modelInfo.includes("Simple") || modelInfo.includes("flash-lite")) {
+      return <span className="bg-green-100 text-green-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full border border-green-400">⚡️ Fast Mode ({modelInfo})</span>;
+    }
+    if (modelInfo.includes("Hard") || modelInfo.includes("flash")) {
+      return <span className="bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full border border-blue-400">🧠 Standard Mode ({modelInfo})</span>;
+    }
+    return <span className="bg-purple-100 text-purple-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full border border-purple-400">🎓 Pro Mode ({modelInfo})</span>;
+  };
 
   if (isAuthenticated) {
     return (
@@ -135,7 +160,6 @@ export default function Home() {
                   onClick={handleRetake}
                   className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition backdrop-blur-sm z-10"
                 >
-                  {/* X icon */}
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 18 18" /></svg>
                 </button>
               </div>
@@ -159,13 +183,22 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Solution Display */}
               {solution && (
-                <div className="animate-in slide-in-from-bottom-5 fade-in duration-500 pb-10">
-                  <SolutionDisplay content={solution} />
-                  <div className="mt-8 flex flex-col gap-3">
+                <div className="w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-slide-up">
+                  <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                    <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                      <span className="text-2xl">💡</span> 풀이 과정
+                    </h2>
+                    {usedModel && getModelBadge(usedModel)}
+                  </div>
+                  <div className="p-6">
+                    <SolutionDisplay solution={solution} />
+                  </div>
+                  <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center">
                     <button
                       onClick={handleRetake}
-                      className="w-full py-4 bg-white border-2 border-blue-600 text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition shadow-sm"
+                      className="px-6 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition text-sm font-medium"
                     >
                       다른 문제 풀기
                     </button>
